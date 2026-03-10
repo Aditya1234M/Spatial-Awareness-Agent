@@ -1,133 +1,75 @@
-# Live API - Web Console
+# Spatial Awareness Agent
 
-This repository contains a react-based starter app for using the [Live API](<[https://ai.google.dev/gemini-api](https://ai.google.dev/api/multimodal-live)>) over a websocket. It provides modules for streaming audio playback, recording user media such as from a microphone, webcam or screen capture as well as a unified log view to aid in development of your application.
+A real-time spatial awareness agent built with the Gemini Live API. It uses your device’s camera and microphone to act as a proactive "third eye" — describing surroundings, detecting scene changes, identifying people and obstacles, and delivering feedback through voice output.
 
-[![Live API Demo](readme/thumbnail.png)](https://www.youtube.com/watch?v=J_q7JY1XxFE)
+Built for the [Gemini Live Agent Challenge](https://geminiliveagentchallenge.devpost.com/).
 
-Watch the demo of the Live API [here](https://www.youtube.com/watch?v=J_q7JY1XxFE).
+## Features
 
-## Usage
+- Real-time camera feed analysis via Gemini Live API
+- Voice output describing surroundings, obstacles, people, and gestures
+- Client-side pixel-diff scene change detection — automatically alerts when the environment changes
+- Works with both voice and text input (text messages include the current camera frame for grounded responses)
+- Safety-first priority — hazards are announced immediately
 
-To get started, [create a free Gemini API key](https://aistudio.google.com/apikey) and add it to the `.env` file. Then:
+## Setup
 
-```
-$ npm install && npm start
-```
+### Prerequisites
 
-We have provided several example applications on other branches of this repository:
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- A Gemini API key
 
-New demos with GenAI SDK:
+### 1. Clone the repository
 
-- [demos/proactive-audio](https://github.com/google-gemini/multimodal-live-api-web-console/tree/demos/proactive-audio) - demonstrates the Live API's [proactive audio feature](https://ai.google.dev/gemini-api/docs/live-guide#proactive-audio)
-
-
-Original demos:
-
-- [demos/GenExplainer](https://github.com/google-gemini/multimodal-live-api-web-console/tree/demos/genexplainer)
-- [demos/GenWeather](https://github.com/google-gemini/multimodal-live-api-web-console/tree/demos/genweather)
-- [demos/GenList](https://github.com/google-gemini/multimodal-live-api-web-console/tree/demos/genlist)
-
-## Example
-
-Below is an example of an entire application that will use Google Search grounding and then render graphs using [vega-embed](https://github.com/vega/vega-embed):
-
-```typescript
-import { type FunctionDeclaration, SchemaType } from "@google/generative-ai";
-import { useEffect, useRef, useState, memo } from "react";
-import vegaEmbed from "vega-embed";
-import { useLiveAPIContext } from "../../contexts/LiveAPIContext";
-
-export const declaration: FunctionDeclaration = {
-  name: "render_altair",
-  description: "Displays an altair graph in json format.",
-  parameters: {
-    type: SchemaType.OBJECT,
-    properties: {
-      json_graph: {
-        type: SchemaType.STRING,
-        description:
-          "JSON STRING representation of the graph to render. Must be a string, not a json object",
-      },
-    },
-    required: ["json_graph"],
-  },
-};
-
-export function Altair() {
-  const [jsonString, setJSONString] = useState<string>("");
-  const { client, setConfig } = useLiveAPIContext();
-
-  useEffect(() => {
-    setConfig({
-      model: "models/gemini-2.0-flash-exp",
-      systemInstruction: {
-        parts: [
-          {
-            text: 'You are my helpful assistant. Any time I ask you for a graph call the "render_altair" function I have provided you. Dont ask for additional information just make your best judgement.',
-          },
-        ],
-      },
-      tools: [{ googleSearch: {} }, { functionDeclarations: [declaration] }],
-    });
-  }, [setConfig]);
-
-  useEffect(() => {
-    const onToolCall = (toolCall: ToolCall) => {
-      console.log(`got toolcall`, toolCall);
-      const fc = toolCall.functionCalls.find(
-        (fc) => fc.name === declaration.name
-      );
-      if (fc) {
-        const str = (fc.args as any).json_graph;
-        setJSONString(str);
-      }
-    };
-    client.on("toolcall", onToolCall);
-    return () => {
-      client.off("toolcall", onToolCall);
-    };
-  }, [client]);
-
-  const embedRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (embedRef.current && jsonString) {
-      vegaEmbed(embedRef.current, JSON.parse(jsonString));
-    }
-  }, [embedRef, jsonString]);
-  return <div className="vega-embed" ref={embedRef} />;
-}
+```bash
+git clone https://github.com/Aditya1234M/Spatial-Awareness-Agent.git
+cd Spatial-Awareness-Agent
 ```
 
-## development
+### 2. Get a Gemini API key
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
-Project consists of:
+Go to [Google AI Studio](https://aistudio.google.com/apikey) and create a free API key.
 
-- an Event-emitting websocket-client to ease communication between the websocket and the front-end
-- communication layer for processing audio in and out
-- a boilerplate view for starting to build your apps and view logs
+### 3. Create a `.env` file
+
+Create a `.env` file in the project root:
+
+```
+REACT_APP_GEMINI_API_KEY=your_api_key_here
+```
+
+Replace `your_api_key_here` with your actual Gemini API key.
+
+### 4. Install dependencies and run
+
+```bash
+npm install
+npm start
+```
+
+The app will open at [http://localhost:3000](http://localhost:3000).
+
+### 5. Usage
+
+1. Click the play button to connect to the Gemini Live API.
+2. Click the webcam button to enable your camera.
+3. Speak or type to ask the agent what it sees.
+4. The agent will automatically announce scene changes when it detects them.
+
+## Architecture
+
+- **Frontend:** React with TypeScript
+- **API:** Gemini Live API via `@google/genai` SDK over WebSocket
+- **Audio:** 16kHz PCM recording, 24kHz playback via Web Audio API
+- **Video:** Camera frames captured at 3fps, sent as JPEG via `sendRealtimeInput`
+- **Scene Detection:** Client-side pixel-diff algorithm on a downscaled 80x45 canvas, triggers model nudge when mean pixel difference exceeds threshold (with 8s cooldown)
 
 ## Available Scripts
 
-In the project directory, you can run:
-
 ### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
-
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+Runs the app in development mode at [http://localhost:3000](http://localhost:3000).
 
 ### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
-
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
-
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
-
-_This is an experiment showcasing the Live API, not an official Google product. We’ll do our best to support and maintain this experiment but your mileage may vary. We encourage open sourcing projects as a way of learning from each other. Please respect our and other creators' rights, including copyright and trademark rights when present, when sharing these works and creating derivative work. If you want more info on Google's policy, you can find that [here](https://developers.google.com/terms/site-policies)._
+Builds the app for production to the `build` folder.
