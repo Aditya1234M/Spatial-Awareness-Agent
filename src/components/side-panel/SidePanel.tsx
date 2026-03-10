@@ -16,7 +16,7 @@
 
 import "./react-select.scss";
 import cn from "classnames";
-import { useEffect, useRef, useState } from "react";
+import { RefObject, useEffect, useRef, useState } from "react";
 import { RiSidebarFoldLine, RiSidebarUnfoldLine } from "react-icons/ri";
 import Select from "react-select";
 import { useLiveAPIContext } from "../../contexts/LiveAPIContext";
@@ -30,7 +30,11 @@ const filterOptions = [
   { value: "none", label: "All" },
 ];
 
-export default function SidePanel() {
+export type SidePanelProps = {
+  videoRef: RefObject<HTMLVideoElement>;
+};
+
+export default function SidePanel({ videoRef }: SidePanelProps) {
   const { connected, client } = useLiveAPIContext();
   const [open, setOpen] = useState(true);
   const loggerRef = useRef<HTMLDivElement>(null);
@@ -65,7 +69,29 @@ export default function SidePanel() {
   }, [client, log]);
 
   const handleSubmit = () => {
-    client.send([{ text: textInput }]);
+    const parts: any[] = [{ text: textInput }];
+
+    // Capture the current video frame and attach it to the text message
+    const video = videoRef.current;
+    if (video && video.videoWidth > 0 && video.videoHeight > 0) {
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth * 0.5;
+      canvas.height = video.videoHeight * 0.5;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const base64 = canvas.toDataURL("image/jpeg", 0.8);
+        const data = base64.slice(base64.indexOf(",") + 1);
+        parts.unshift({
+          inlineData: {
+            mimeType: "image/jpeg",
+            data,
+          },
+        });
+      }
+    }
+
+    client.send(parts);
 
     setTextInput("");
     if (inputRef.current) {

@@ -23,10 +23,7 @@ import ControlTray from "./components/control-tray/ControlTray";
 import cn from "classnames";
 import { LiveClientOptions } from "./types";
 
-const API_KEY = process.env.REACT_APP_GEMINI_API_KEY as string;
-if (typeof API_KEY !== "string") {
-  throw new Error("set REACT_APP_GEMINI_API_KEY in .env");
-}
+const API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "";
 
 const apiOptions: LiveClientOptions = {
   apiKey: API_KEY,
@@ -43,7 +40,7 @@ function App() {
     <div className="App">
       <LiveAPIProvider options={apiOptions}>
         <div className="streaming-console">
-          <SidePanel />
+          <SidePanel videoRef={videoRef} />
           <main>
             <div className="main-app-area">
               {/* APP goes here */}

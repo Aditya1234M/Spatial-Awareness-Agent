@@ -16,7 +16,7 @@
 
 import cn from "classnames";
 
-import { memo, ReactNode, RefObject, useEffect, useRef, useState } from "react";
+import { memo, ReactNode, RefObject, useEffect, useRef, useState, useCallback } from "react";
 import { useLiveAPIContext } from "../../contexts/LiveAPIContext";
 import { UseMediaStreamResult } from "../../hooks/use-media-stream-mux";
 import { useScreenCapture } from "../../hooks/use-screen-capture";
@@ -73,7 +73,18 @@ function ControlTray({
   const [audioRecorder] = useState(() => new AudioRecorder());
   const [muted, setMuted] = useState(false);
   const renderCanvasRef = useRef<HTMLCanvasElement>(null);
+  const diffCanvasRef = useRef<HTMLCanvasElement>(null);
+  const prevFrameDataRef = useRef<Uint8ClampedArray | null>(null);
+  const lastNudgeTimeRef = useRef<number>(0);
   const connectButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Dimensions for the lightweight diff canvas
+  const DIFF_W = 80;
+  const DIFF_H = 45;
+  // Mean pixel difference threshold (0-255). ~20 filters sensor noise but catches real changes.
+  const DIFF_THRESHOLD = 20;
+  // Minimum seconds between nudges so we don't spam the model
+  const NUDGE_COOLDOWN_MS = 8000;
 
   const { client, connected, connect, disconnect, volume } =
     useLiveAPIContext();
@@ -109,6 +120,58 @@ function ControlTray({
     };
   }, [connected, client, muted, audioRecorder]);
 
+  // Capture a frame from the video element as a base64 JPEG
+  const captureFrame = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = renderCanvasRef.current;
+    if (!video || !canvas || video.videoWidth === 0) return null;
+
+    const ctx = canvas.getContext("2d")!;
+    canvas.width = video.videoWidth * 0.5;
+    canvas.height = video.videoHeight * 0.5;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const base64 = canvas.toDataURL("image/jpeg", 0.8);
+    return base64.slice(base64.indexOf(",") + 1);
+  }, [videoRef, renderCanvasRef]);
+
+  // Compare current frame to previous using a tiny grayscale canvas.
+  // Returns a difference score 0-255 (mean absolute pixel difference).
+  const computeFrameDiff = useCallback(() => {
+    const video = videoRef.current;
+    const diffCanvas = diffCanvasRef.current;
+    if (!video || !diffCanvas || video.videoWidth === 0) return 0;
+
+    const ctx = diffCanvas.getContext("2d", { willReadFrequently: true })!;
+    diffCanvas.width = DIFF_W;
+    diffCanvas.height = DIFF_H;
+    ctx.drawImage(video, 0, 0, DIFF_W, DIFF_H);
+
+    const imageData = ctx.getImageData(0, 0, DIFF_W, DIFF_H);
+    const currentPixels = imageData.data; // RGBA flat array
+
+    const prev = prevFrameDataRef.current;
+    if (!prev) {
+      // First frame — store and report no diff
+      prevFrameDataRef.current = new Uint8ClampedArray(currentPixels);
+      return 0;
+    }
+
+    // Compute mean absolute difference over grayscale values
+    let totalDiff = 0;
+    const pixelCount = DIFF_W * DIFF_H;
+    for (let i = 0; i < currentPixels.length; i += 4) {
+      const grayNow = (currentPixels[i] + currentPixels[i + 1] + currentPixels[i + 2]) / 3;
+      const grayPrev = (prev[i] + prev[i + 1] + prev[i + 2]) / 3;
+      totalDiff += Math.abs(grayNow - grayPrev);
+    }
+
+    // Store current frame for next comparison
+    prevFrameDataRef.current = new Uint8ClampedArray(currentPixels);
+
+    return totalDiff / pixelCount;
+  }, [videoRef]);
+
+  // Send video frames to the API at ~3fps, with change detection
   useEffect(() => {
     if (videoRef.current) {
       videoRef.current.srcObject = activeVideoStream;
@@ -117,24 +180,23 @@ function ControlTray({
     let timeoutId = -1;
 
     function sendVideoFrame() {
-      const video = videoRef.current;
-      const canvas = renderCanvasRef.current;
-
-      if (!video || !canvas) {
-        return;
-      }
-
-      const ctx = canvas.getContext("2d")!;
-      canvas.width = video.videoWidth * 0.25;
-      canvas.height = video.videoHeight * 0.25;
-      if (canvas.width + canvas.height > 0) {
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const base64 = canvas.toDataURL("image/jpeg", 1.0);
-        const data = base64.slice(base64.indexOf(",") + 1, Infinity);
+      const data = captureFrame();
+      if (data) {
         client.sendRealtimeInput([{ mimeType: "image/jpeg", data }]);
+
+        // Check for significant scene change
+        const diff = computeFrameDiff();
+        const now = Date.now();
+        if (diff > DIFF_THRESHOLD && now - lastNudgeTimeRef.current > NUDGE_COOLDOWN_MS) {
+          lastNudgeTimeRef.current = now;
+          client.send(
+            [{ text: "The scene just changed. Briefly describe what you see now." }],
+            true
+          );
+        }
       }
       if (connected) {
-        timeoutId = window.setTimeout(sendVideoFrame, 1000 / 0.5);
+        timeoutId = window.setTimeout(sendVideoFrame, 1000 / 3);
       }
     }
     if (connected && activeVideoStream !== null) {
@@ -143,7 +205,7 @@ function ControlTray({
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [connected, activeVideoStream, client, videoRef]);
+  }, [connected, activeVideoStream, client, videoRef, captureFrame, computeFrameDiff]);
 
   //handler for swapping from one video-stream to the next
   const changeStreams = (next?: UseMediaStreamResult) => async () => {
@@ -162,6 +224,7 @@ function ControlTray({
   return (
     <section className="control-tray">
       <canvas style={{ display: "none" }} ref={renderCanvasRef} />
+      <canvas style={{ display: "none" }} ref={diffCanvasRef} />
       <nav className={cn("actions-nav", { disabled: !connected })}>
         <button
           className={cn("action-button mic-button")}
