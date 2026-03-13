@@ -53,8 +53,9 @@ The app will open at [http://localhost:3000](http://localhost:3000).
 
 1. Click the play button to connect to the Gemini Live API.
 2. Click the webcam button to enable your camera.
-3. Speak or type to ask the agent what it sees.
-4. The agent will automatically announce scene changes when it detects them.
+3. Click the microphone button to let the agent access your mic.
+4. Speak or type to ask the agent what it sees.
+5. The agent will automatically announce scene changes when it detects them.
 
 ## Architecture
 
