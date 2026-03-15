@@ -143,7 +143,7 @@ body {
     align-items: center;
     justify-content: center;
     flex-grow: 1;
-    gap: 1rem;
+    gap: 0;
     max-width: 100%;
     overflow: hidden;
   }
@@ -153,6 +153,7 @@ body {
     flex: 1;
     align-items: center;
     justify-content: center;
+    position: relative;
   }
 
   .function-call {
@@ -170,4 +171,116 @@ body {
   max-width: 90%;
   border-radius: 32px;
   max-height: fit-content;
+}
+
+/* Iris header bar */
+.iris-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 12px 24px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.iris-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--Red-500);
+  flex-shrink: 0;
+
+  &.active {
+    background: var(--Green-500);
+    box-shadow: 0 0 6px var(--Green-500);
+  }
+
+  &.camera-dot {
+    margin-left: 12px;
+  }
+}
+
+.status-text {
+  font-size: 11px;
+  color: var(--Neutral-60);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.iris-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.iris-slogan {
+  font-size: 11px;
+  color: var(--Neutral-50);
+  font-style: italic;
+}
+
+.iris-brand {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--Neutral-90);
+  letter-spacing: 3px;
+  text-transform: lowercase;
+}
+
+/* No camera placeholder */
+.no-camera-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--Neutral-50);
+
+  .placeholder-icon {
+    font-size: 64px;
+    opacity: 0.3;
+  }
+
+  p {
+    font-size: 14px;
+    margin: 0;
+  }
+}
+
+/* Language selector */
+.language-selector {
+  display: flex;
+  align-items: center;
+}
+
+.language-dropdown {
+  background: var(--Neutral-20);
+  color: var(--Neutral-90);
+  border: 1px solid var(--Neutral-30);
+  border-radius: 12px;
+  padding: 6px 12px;
+  font-family: "Space Mono", monospace;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+
+  &:hover {
+    border-color: var(--Neutral-50);
+  }
+
+  &:focus {
+    border-color: var(--Blue-500);
+  }
+
+  option {
+    background: var(--Neutral-20);
+    color: var(--Neutral-90);
+  }
 }

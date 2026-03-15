@@ -39,11 +39,15 @@ const declaration: FunctionDeclaration = {
   },
 };
 
-function AltairComponent() {
+function AltairComponent({ language }: { language: string }) {
   const [jsonString, setJSONString] = useState<string>("");
   const { client, setConfig, setModel } = useLiveAPIContext();
 
   useEffect(() => {
+    const languageInstruction = language !== "en"
+      ? `\n\n## Language\nAlways respond in ${language}. All descriptions, warnings, and scene updates must be spoken in ${language}.`
+      : "";
+
     setModel("models/gemini-2.5-flash-native-audio-preview-12-2025");
     setConfig({
       responseModalities: [Modality.AUDIO],
@@ -82,7 +86,7 @@ If you see something dangerous, say it IMMEDIATELY. Do not wait. Interrupt yours
 - Do not make up details.
 - Do not describe what a scene "typically" looks like. Describe THIS frame.
 - Do not say "the image is dark/blurry" unless it is genuinely unrecognizable.
-- Do not repeat your previous description if the user asks again — always look at the current frame fresh.`,
+- Do not repeat your previous description if the user asks again — always look at the current frame fresh.${languageInstruction}`,
           },
         ],
       },
@@ -92,7 +96,7 @@ If you see something dangerous, say it IMMEDIATELY. Do not wait. Interrupt yours
         { functionDeclarations: [declaration] },
       ],
     });
-  }, [setConfig, setModel]);
+  }, [setConfig, setModel, language]);
 
   useEffect(() => {
     const onToolCall = (toolCall: LiveServerToolCall) => {

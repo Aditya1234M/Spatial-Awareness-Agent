@@ -22,6 +22,7 @@ import { Altair } from "./components/altair/Altair";
 import ControlTray from "./components/control-tray/ControlTray";
 import cn from "classnames";
 import { LiveClientOptions } from "./types";
+import { useLiveAPIContext } from "./contexts/LiveAPIContext";
 
 const API_KEY = process.env.REACT_APP_GEMINI_API_KEY || "";
 
@@ -29,42 +30,98 @@ const apiOptions: LiveClientOptions = {
   apiKey: API_KEY,
 };
 
-function App() {
-  // this video reference is used for displaying the active stream, whether that is the webcam or screen capture
-  // feel free to style as you see fit
-  const videoRef = useRef<HTMLVideoElement>(null);
-  // either the screen capture, the video or null, if null we hide it
-  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+const LANGUAGES = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Spanish" },
+  { code: "fr", label: "French" },
+  { code: "de", label: "German" },
+  { code: "hi", label: "Hindi" },
+  { code: "ja", label: "Japanese" },
+  { code: "zh", label: "Chinese" },
+  { code: "ar", label: "Arabic" },
+  { code: "pt", label: "Portuguese" },
+  { code: "ko", label: "Korean" },
+];
 
+function AppContent() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+  const [language, setLanguage] = useState("en");
+  const { connected } = useLiveAPIContext();
+
+  return (
+    <div className="streaming-console">
+      <SidePanel videoRef={videoRef} />
+      <main>
+        <header className="iris-header">
+          <div className="iris-header-left">
+            <div className={cn("status-dot", { active: connected })} />
+            <span className="status-text">
+              {connected ? "Connected" : "Disconnected"}
+            </span>
+            {videoStream && (
+              <>
+                <div className="status-dot camera-dot active" />
+                <span className="status-text">Camera</span>
+              </>
+            )}
+          </div>
+          <div className="iris-header-right">
+            <span className="iris-slogan">Your third eye, always watching</span>
+            <span className="iris-brand">iris</span>
+          </div>
+        </header>
+
+        <div className="main-app-area">
+          <Altair language={language} />
+          <video
+            className={cn("stream", {
+              hidden: !videoRef.current || !videoStream,
+            })}
+            ref={videoRef}
+            autoPlay
+            playsInline
+          />
+          {!videoStream && (
+            <div className="no-camera-placeholder">
+              <span className="material-symbols-outlined filled placeholder-icon">
+                visibility
+              </span>
+              <p>Enable camera to start</p>
+            </div>
+          )}
+        </div>
+
+        <ControlTray
+          videoRef={videoRef}
+          supportsVideo={true}
+          onVideoStreamChange={setVideoStream}
+          enableEditingSettings={false}
+        >
+          <div className="language-selector">
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="language-dropdown"
+            >
+              {LANGUAGES.map((lang) => (
+                <option key={lang.code} value={lang.code}>
+                  {lang.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </ControlTray>
+      </main>
+    </div>
+  );
+}
+
+function App() {
   return (
     <div className="App">
       <LiveAPIProvider options={apiOptions}>
-        <div className="streaming-console">
-          <SidePanel videoRef={videoRef} />
-          <main>
-            <div className="main-app-area">
-              {/* APP goes here */}
-              <Altair />
-              <video
-                className={cn("stream", {
-                  hidden: !videoRef.current || !videoStream,
-                })}
-                ref={videoRef}
-                autoPlay
-                playsInline
-              />
-            </div>
-
-            <ControlTray
-              videoRef={videoRef}
-              supportsVideo={true}
-              onVideoStreamChange={setVideoStream}
-              enableEditingSettings={true}
-            >
-              {/* put your own buttons here */}
-            </ControlTray>
-          </main>
-        </div>
+        <AppContent />
       </LiveAPIProvider>
     </div>
   );
