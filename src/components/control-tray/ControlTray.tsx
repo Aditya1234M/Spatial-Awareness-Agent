@@ -254,8 +254,8 @@ function ControlTray({
               isStreaming={webcam.isStreaming}
               start={changeStreams(webcam)}
               stop={changeStreams()}
-              onIcon="videocam_off"
-              offIcon="videocam"
+              onIcon="videocam"
+              offIcon="videocam_off"
             />
           </>
         )}
